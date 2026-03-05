@@ -1,13 +1,13 @@
 # Learning Log (Moodle plugin set)
 
-A Moodle plugin set that adds **Learning Log** — a reflective journal or blog activity where each learner has their own named log per course. Learners write entries (posts), organise them with categories, control visibility, and optionally share logs site-wide. Educators can track progress via completion rules and view recent posts in the course.
+A Moodle plugin set that adds **Learning Log** - a reflective journal or blog activity where each learner has their own named log per course. Learners write entries (posts), organise them with categories, control visibility, and optionally share logs site-wide. Educators can track progress via completion rules and view recent posts in the course.
 
 ---
 
 ## What it does
 
 - **Per-learner learning logs** — Each student creates and names one Learning Log per course (e.g. “My Reflective Journal”). Entries belong to that log.
-- **Posts with status and visibility** — Entries can be **Draft**, **Published**, or **Personal research**. Visibility can be **Private** (only me and staff), **Visible within this course**, or **Visible across the organisation**.
+- **Posts with status and visibility** - Entries can be **Draft**, **Published**, or **Personal research**. Visibility can be **Private** (only me and staff), **Visible within this course**, or **Visible across the organisation**.
 - **Categories** — Learners can organise posts with section-based or custom categories and filter their log view.
 - **Comments** — Option to allow comments on posts for peer or tutor feedback.
 - **Completion** — Activity completion can be based on a required number of published posts.
