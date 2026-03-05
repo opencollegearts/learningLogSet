@@ -1,0 +1,65 @@
+/* Styles for controls outside the editor iframe. */
+
+/* When the file picker is open: put our Insert layout dialog behind and bring Moodle's file picker to the front. */
+body.tiny-bloglayout-filepicker-open .tox-dialog-wrap,
+body.tiny-bloglayout-filepicker-open .tox-dialog {
+    z-index: 900 !important;
+}
+/* Moodle file picker dialogue uses class .filepicker (no hyphen) and inline z-index; override so it appears above our dialog. */
+body.tiny-bloglayout-filepicker-open .filepicker,
+body.tiny-bloglayout-filepicker-open .moodle-dialogue-lightbox {
+    z-index: 1300 !important;
+}
+
+.tiny-bloglayout-wrapper.layout-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(140px, 1fr));
+    gap: 0.75rem;
+}
+
+.tiny-bloglayout-wrapper.layout-grid .tbl-image-item img {
+    width: 100%;
+    height: 160px;
+    object-fit: cover;
+    display: block;
+}
+
+.tiny-bloglayout-wrapper.layout-slider {
+    width: 100%;
+}
+
+/* Simple lightbox overlay (used when GLightbox is not available). */
+.tiny-bloglayout-lightbox {
+    position: fixed;
+    inset: 0;
+    z-index: 10000;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 1rem;
+    box-sizing: border-box;
+}
+.tiny-bloglayout-lightbox-backdrop {
+    position: absolute;
+    inset: 0;
+    background: rgba(0, 0, 0, 0.85);
+    cursor: pointer;
+}
+.tiny-bloglayout-lightbox-content {
+    position: relative;
+    z-index: 1;
+    max-width: 100%;
+    max-height: 100%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+.tiny-bloglayout-lightbox-content img {
+    max-width: 100%;
+    max-height: calc(100vh - 2rem);
+    width: auto;
+    height: auto;
+    object-fit: contain;
+    cursor: default;
+}
+

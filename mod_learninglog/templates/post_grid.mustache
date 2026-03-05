@@ -1,0 +1,36 @@
+{{! Grid of learning log posts - banner as tile background with tint, excerpt on hover }}
+<div class="container-fluid">
+    <div class="row row-cols-1 row-cols-md-2 row-cols-lg-3 g-4 learninglog-post-grid">
+        {{#cards}}
+        <div class="col">
+            <article class="learninglog-post-tile card h-100 shadow-sm {{#bannerurl}}has-banner{{/bannerurl}}">
+                {{#bannerurl}}
+                <div class="tile-background" style="background-image: url({{bannerurl}});" aria-hidden="true"></div>
+                <div class="tile-tint"></div>
+                {{/bannerurl}}
+
+                <div class="tile-content card-body d-flex flex-column">
+                    <h3 class="card-title h5 mb-1">
+                        <a href="{{url}}" class="tile-title-link">{{title}}</a>
+                    </h3>
+                    <p class="card-text small text-muted mb-2 tile-date">{{date}}</p>
+                    <p class="card-text tile-excerpt mb-3">{{summary}}</p>
+
+                    <div class="mt-auto d-flex align-items-center justify-content-between tile-meta">
+                        <div class="d-flex align-items-center">
+                            {{{userpicture}}}
+                            <span class="ms-2 small">{{fullname}}</span>
+                        </div>
+                        <span class="badge bg-secondary text-uppercase small">{{status}}</span>
+                    </div>
+                </div>
+            </article>
+        </div>
+        {{/cards}}
+        {{^cards}}
+        <div class="col">
+            <div class="alert alert-info">{{#str}}nopostsyet, mod_learninglog{{/str}}</div>
+        </div>
+        {{/cards}}
+    </div>
+</div>
