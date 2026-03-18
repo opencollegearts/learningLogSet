@@ -1,0 +1,324 @@
+/* Learning log hero banner (personal-website style) */
+.learninglog-hero-banner {
+    position: relative;
+    width: 100vw;
+    margin-left: calc(-50vw + 50%);
+    margin-right: calc(-50vw + 50%);
+    min-height: 320px;
+    padding: 3.5rem 0;
+    margin-bottom: 1.5rem;
+    display: flex;
+    align-items: flex-end;
+    color: #fff;
+    background: linear-gradient(135deg, #2c3e50 0%, #3498db 100%);
+}
+
+.learninglog-hero-banner.has-banner .learninglog-hero-banner-bg {
+    position: absolute;
+    inset: 0;
+    background-size: cover;
+    background-position: center;
+}
+
+.learninglog-hero-banner-overlay {
+    position: absolute;
+    inset: 0;
+    background: linear-gradient(
+        to bottom,
+        rgba(0, 0, 0, 0.35) 0%,
+        rgba(0, 0, 0, 0.5) 50%,
+        rgba(0, 0, 0, 0.7) 100%
+    );
+}
+
+.learninglog-hero-banner-inner {
+    position: relative;
+    z-index: 1;
+    width: 100%;
+}
+
+.learninglog-hero-title {
+    font-size: 2rem;
+    font-weight: 700;
+    color: #fff;
+    margin: 0 0 0.25rem 0;
+    text-shadow: 0 1px 3px rgba(0, 0, 0, 0.5);
+}
+
+@media (min-width: 768px) {
+    .learninglog-hero-title {
+        font-size: 2.5rem;
+    }
+}
+
+/* Mobile portrait: avoid 100vw/negative-margin clipping and stack actions. */
+@media (max-width: 575.98px) {
+    .learninglog-hero-banner {
+        width: 100%;
+        margin-left: 0;
+        margin-right: 0;
+        min-height: 280px;
+        padding: 2.25rem 0;
+    }
+
+    .learninglog-hero-title {
+        font-size: 1.85rem;
+        line-height: 1.1;
+        word-break: break-word;
+    }
+
+    .learninglog-hero-exportlinks-wrap {
+        width: 100%;
+        margin-top: 0.75rem;
+    }
+
+    .learninglog-hero-exportlinks {
+        white-space: normal;
+    }
+}
+
+.learninglog-hero-description {
+    font-size: 0.95rem;
+    color: rgba(255, 255, 255, 0.95);
+    margin: 0;
+    max-width: 42em;
+}
+
+.learninglog-hero-description p:last-child {
+    margin-bottom: 0;
+}
+
+.learninglog-hero-link {
+    color: #fff !important;
+    text-decoration: none;
+}
+
+.learninglog-hero-link:hover,
+.learninglog-hero-link:focus {
+    color: #fff !important;
+    text-decoration: underline;
+}
+
+/* Dark tint behind export/import links so they stay readable on any banner. */
+.learninglog-hero-exportlinks-wrap {
+    background: rgba(0, 0, 0, 0.55);
+    padding: 0.5rem 0.85rem;
+    border-radius: 0.25rem;
+}
+
+.learninglog-hero-exportlinks-wrap a {
+    color: #fff !important;
+}
+
+.learninglog-hero-exportlinks-wrap a:hover {
+    color: #fff !important;
+    text-decoration: underline;
+}
+
+.learninglog-hero-exportlinks {
+    white-space: nowrap;
+}
+
+/* Learning log post tiles: banner as background with tint, excerpt on hover */
+.learninglog-post-grid .learninglog-post-tile {
+    position: relative;
+    overflow: hidden;
+    min-height: 220px;
+}
+
+.learninglog-post-grid .learninglog-post-tile.has-banner .tile-background {
+    position: absolute;
+    inset: 0;
+    background-size: cover;
+    background-position: center;
+}
+
+.learninglog-post-grid .learninglog-post-tile.has-banner .tile-tint {
+    position: absolute;
+    inset: 0;
+    background: rgba(0, 0, 0, 0.45);
+    transition: background 0.25s ease;
+}
+
+.learninglog-post-grid .learninglog-post-tile.has-banner:hover .tile-tint {
+    background: rgba(0, 0, 0, 0.65);
+}
+
+.learninglog-post-grid .learninglog-post-tile.has-banner .tile-content {
+    position: relative;
+    z-index: 1;
+    color: #fff;
+}
+
+.learninglog-post-grid .learninglog-post-tile.has-banner .tile-title-link {
+    color: #fff;
+    text-decoration: none;
+    text-shadow: 0 1px 2px rgba(0, 0, 0, 0.5);
+}
+
+.learninglog-post-grid .learninglog-post-tile.has-banner .tile-title-link:hover {
+    color: #fff;
+    text-decoration: underline;
+}
+
+.learninglog-post-grid .learninglog-post-tile.has-banner .tile-date {
+    color: rgba(255, 255, 255, 0.9);
+}
+
+.learninglog-post-grid .learninglog-post-tile.has-banner .tile-excerpt {
+    color: rgba(255, 255, 255, 0.95);
+    font-size: 0.875rem;
+    max-height: 0;
+    opacity: 0;
+    overflow: hidden;
+    margin-bottom: 0 !important;
+    transition: max-height 0.3s ease, opacity 0.25s ease;
+}
+
+.learninglog-post-grid .learninglog-post-tile.has-banner:hover .tile-excerpt {
+    max-height: 120px;
+    opacity: 1;
+    margin-bottom: 0.75rem !important;
+}
+
+.learninglog-post-grid .learninglog-post-tile.has-banner .tile-meta {
+    color: rgba(255, 255, 255, 0.95);
+}
+
+.learninglog-post-grid .learninglog-post-tile.has-banner .tile-meta .badge {
+    background: rgba(255, 255, 255, 0.25) !important;
+}
+
+/* No-banner tiles keep default card look */
+.learninglog-post-grid .learninglog-post-tile:not(.has-banner) {
+    min-height: auto;
+}
+
+/* Learning log tiles (e.g. on Learning Logs view) - same banner/tint/hover pattern */
+.learninglog-log-grid .learninglog-log-tile {
+    position: relative;
+    overflow: hidden;
+    min-height: 220px;
+}
+
+.learninglog-log-grid .learninglog-log-tile.has-banner .tile-background {
+    position: absolute;
+    inset: 0;
+    background-size: cover;
+    background-position: center;
+}
+
+.learninglog-log-grid .learninglog-log-tile.has-banner .tile-tint {
+    position: absolute;
+    inset: 0;
+    background: rgba(0, 0, 0, 0.45);
+    transition: background 0.25s ease;
+}
+
+.learninglog-log-grid .learninglog-log-tile.has-banner:hover .tile-tint {
+    background: rgba(0, 0, 0, 0.65);
+}
+
+.learninglog-log-grid .learninglog-log-tile.has-banner .tile-content {
+    position: relative;
+    z-index: 1;
+    color: #fff;
+}
+
+.learninglog-log-grid .learninglog-log-tile.has-banner .tile-title-link {
+    color: #fff;
+    text-decoration: none;
+    text-shadow: 0 1px 2px rgba(0, 0, 0, 0.5);
+}
+
+.learninglog-log-grid .learninglog-log-tile.has-banner .tile-title-link:hover {
+    color: #fff;
+    text-decoration: underline;
+}
+
+.learninglog-log-grid .learninglog-log-tile.has-banner .tile-meta {
+    color: rgba(255, 255, 255, 0.9);
+}
+
+.learninglog-log-grid .learninglog-log-tile.has-banner .tile-excerpt {
+    color: rgba(255, 255, 255, 0.95);
+    font-size: 0.875rem;
+    max-height: 0;
+    opacity: 0;
+    overflow: hidden;
+    margin-bottom: 0 !important;
+    transition: max-height 0.3s ease, opacity 0.25s ease;
+}
+
+.learninglog-log-grid .learninglog-log-tile.has-banner:hover .tile-excerpt {
+    max-height: 120px;
+    opacity: 1;
+    margin-bottom: 0.75rem !important;
+}
+
+.learninglog-log-grid .learninglog-log-tile.has-banner .btn-outline-light {
+    border-color: rgba(255, 255, 255, 0.6);
+    color: #fff;
+}
+
+.learninglog-log-grid .learninglog-log-tile.has-banner .btn-outline-light:hover {
+    background: rgba(255, 255, 255, 0.2);
+    border-color: #fff;
+    color: #fff;
+}
+
+.learninglog-log-grid .learninglog-log-tile:not(.has-banner) {
+    min-height: auto;
+}
+
+/* Single post detail view */
+.learninglog-post-detail {
+    max-width: 960px;
+    margin: 0 auto;
+}
+
+.learninglog-post-banner .ratio {
+    border-radius: 0.25rem;
+    overflow: hidden;
+}
+
+.learninglog-post-header {
+    text-align: left;
+}
+
+.learninglog-post-meta {
+    font-size: 0.85rem;
+    letter-spacing: 0.03em;
+    text-transform: uppercase;
+}
+
+.learninglog-post-title {
+    font-size: 2.25rem;
+    font-weight: 700;
+    margin: 0.25rem 0 0;
+}
+
+@media (min-width: 768px) {
+    .learninglog-post-title {
+        font-size: 2.75rem;
+    }
+}
+
+.learninglog-post-body {
+    font-size: 1rem;
+    line-height: 1.7;
+}
+
+.learninglog-post-body p:first-of-type::first-letter {
+    float: left;
+    font-size: 3.25rem;
+    line-height: 1;
+    padding-right: 0.2em;
+    padding-top: 0.05em;
+    font-weight: 700;
+}
+
+.learninglog-comments {
+    max-width: 960px;
+    margin: 0 auto;
+}

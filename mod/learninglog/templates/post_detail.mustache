@@ -1,0 +1,53 @@
+<article class="learninglog-post-detail">
+    {{#bannerurl}}
+    <div class="learninglog-post-banner mb-4">
+        <div class="ratio ratio-21x9">
+            <img src="{{bannerurl}}" class="w-100 object-fit-cover" alt="">
+        </div>
+    </div>
+    {{/bannerurl}}
+
+    <header class="learninglog-post-header mb-4">
+        <p class="learninglog-post-meta text-muted mb-1">
+            {{date}} &nbsp;—&nbsp; {{#str}}postedby, mod_learninglog{{/str}} {{fullname}}
+        </p>
+        <h1 class="learninglog-post-title">{{title}}</h1>
+        {{#editurl}}
+        <p class="learninglog-post-actions mb-0 mt-3">
+            <a href="{{editurl}}" class="btn btn-outline-secondary btn-sm">{{#str}}editpost, mod_learninglog{{/str}}</a>
+            {{#deleteurl}}
+            <a href="{{deleteurl}}" class="btn btn-outline-danger btn-sm ms-1">{{#str}}deletepost, mod_learninglog{{/str}}</a>
+            {{/deleteurl}}
+        </p>
+        {{/editurl}}
+    </header>
+
+    <div class="learninglog-post-body mb-5">
+        {{{content}}}
+    </div>
+
+    {{#hascommentsection}}
+    <section class="learninglog-comments mt-4 border-top pt-4">
+        <h2 class="h5 mb-3">{{#str}}comments, mod_learninglog{{/str}}</h2>
+        <ul class="list-unstyled mb-3">
+            {{#comments}}
+            <li class="mb-3 pb-2 border-bottom">
+                <p class="small text-muted mb-1">{{fullname}} — {{date}}{{#deleteurl}} &middot; <a href="{{deleteurl}}" class="text-danger">{{#str}}deletecomment, mod_learninglog{{/str}}</a>{{/deleteurl}}</p>
+                <p class="mb-0">{{content}}</p>
+            </li>
+            {{/comments}}
+        </ul>
+        {{#showcommentform}}
+        <form method="post" action="{{commentformaction}}" class="mt-2 learninglog-comment-form">
+            <input type="hidden" name="sesskey" value="{{sesskey}}">
+            <div class="mb-2">
+                <label for="learninglog-comment-content" class="form-label">{{#str}}addcomment, mod_learninglog{{/str}}</label>
+                <textarea name="content" id="learninglog-comment-content" class="form-control" rows="3" required></textarea>
+            </div>
+            <button type="submit" class="btn btn-primary btn-sm">{{#str}}submitcomment, mod_learninglog{{/str}}</button>
+        </form>
+        {{/showcommentform}}
+    </section>
+    {{/hascommentsection}}
+</article>
+
