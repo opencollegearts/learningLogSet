@@ -17,7 +17,7 @@
 defined('MOODLE_INTERNAL') || die();
 
 $plugin->component = 'mod_learninglog';
-$plugin->version   = 2026030207;
+$plugin->version   = 2026031203;
 $plugin->release   = '1.0.0';
 $plugin->requires  = 2024050100; // Moodle 4.5 (approximate build number).
 $plugin->maturity  = MATURITY_BETA;

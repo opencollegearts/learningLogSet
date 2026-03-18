@@ -22,3 +22,17 @@
     border: 1px dashed #ccc;
 }
 
+/* Editable captions inside the editor. */
+.tiny-bloglayout-wrapper .tbl-image-caption {
+    font-size: 0.8rem;
+    color: #666;
+    margin-bottom: 0.25rem;
+    min-height: 1.2em;
+}
+
+.tiny-bloglayout-wrapper .tbl-image-caption:empty::before {
+    content: 'Add Caption';
+    color: #aaa;
+    font-style: italic;
+}
+

@@ -75,12 +75,14 @@
             </INDEXES>
         </TABLE>
 
-        <TABLE NAME="learninglog_categories" COMMENT="Learning log categories: section-based or user-created">
+        <TABLE NAME="learninglog_categories" COMMENT="Learning log categories: section-based or user-created (course-level)">
             <FIELDS>
                 <FIELD NAME="id" TYPE="int" LENGTH="10" NOTNULL="true" SEQUENCE="true"/>
-                <FIELD NAME="learninglogid" TYPE="int" LENGTH="10" NOTNULL="true" SEQUENCE="false"/>
-                <FIELD NAME="userid" TYPE="int" LENGTH="10" NOTNULL="false" SEQUENCE="false"/>
+                <FIELD NAME="courseid" TYPE="int" LENGTH="10" NOTNULL="true" SEQUENCE="false"/>
+                <FIELD NAME="learninglogid" TYPE="int" LENGTH="10" NOTNULL="false" SEQUENCE="false"/>
+                <FIELD NAME="userid" TYPE="int" LENGTH="10" NOTNULL="true" SEQUENCE="false"/>
                 <FIELD NAME="parentid" TYPE="int" LENGTH="10" NOTNULL="false" SEQUENCE="false"/>
+                <FIELD NAME="sectionid" TYPE="int" LENGTH="10" NOTNULL="false" SEQUENCE="false"/>
                 <FIELD NAME="name" TYPE="char" LENGTH="255" NOTNULL="true" SEQUENCE="false"/>
                 <FIELD NAME="slug" TYPE="char" LENGTH="255" NOTNULL="false" SEQUENCE="false"/>
                 <FIELD NAME="sortorder" TYPE="int" LENGTH="10" NOTNULL="true" DEFAULT="0" SEQUENCE="false"/>
@@ -89,11 +91,12 @@
             </FIELDS>
             <KEYS>
                 <KEY NAME="primary" TYPE="primary" FIELDS="id"/>
+                <KEY NAME="courseid" TYPE="foreign" FIELDS="courseid" REFTABLE="course" REFFIELDS="id"/>
                 <KEY NAME="learninglogid" TYPE="foreign" FIELDS="learninglogid" REFTABLE="learninglog" REFFIELDS="id"/>
                 <KEY NAME="parentid" TYPE="foreign" FIELDS="parentid" REFTABLE="learninglog_categories" REFFIELDS="id"/>
             </KEYS>
             <INDEXES>
-                <INDEX NAME="learninglog_sort_idx" UNIQUE="false" FIELDS="learninglogid, sortorder"/>
+                <INDEX NAME="user_course_sort_idx" UNIQUE="false" FIELDS="userid, courseid, sortorder"/>
             </INDEXES>
         </TABLE>
 

@@ -109,7 +109,53 @@ function learninglog_create_user_log(int $userid, int $courseid, string $name, ?
         'timecreated' => time(),
     ];
     $record->id = $DB->insert_record('learninglog_user_log', $record);
+
+    // Create section-based categories at course level (one per section, learninglogid null).
+    learninglog_ensure_section_categories_for_course($userid, $courseid);
+
     return $record;
+}
+
+/**
+ * Ensure section-based category rows exist for this user/course (course-level: learninglogid null).
+ * Creates one row per course section (except section 0) if missing.
+ *
+ * @param int $userid
+ * @param int $courseid
+ */
+function learninglog_ensure_section_categories_for_course(int $userid, int $courseid): void {
+    global $DB;
+    $course = $DB->get_record('course', ['id' => $courseid], '*', MUST_EXIST);
+    $sections = $DB->get_records('course_sections', ['course' => $courseid], 'section ASC');
+    $sort = 0;
+    foreach ($sections as $section) {
+        if ((int)$section->section === 0) {
+            continue;
+        }
+        $exists = $DB->record_exists('learninglog_categories', [
+            'userid' => $userid,
+            'courseid' => $courseid,
+            'learninglogid' => null,
+            'sectionid' => $section->id,
+        ]);
+        if ($exists) {
+            continue;
+        }
+        $cat = (object)[
+            'courseid' => $courseid,
+            'learninglogid' => null,
+            'userid' => $userid,
+            'parentid' => null,
+            'sectionid' => $section->id,
+            'name' => get_section_name($course, $section),
+            'slug' => null,
+            'sortorder' => $sort,
+            'timecreated' => time(),
+            'timemodified' => time(),
+        ];
+        $DB->insert_record('learninglog_categories', $cat);
+        $sort++;
+    }
 }
 
 /**
@@ -278,11 +324,11 @@ function learninglog_export_media_token_url(\stored_file $file, int $expirysecon
 
 /**
  * Get categories (sections + custom) with post counts for navigation.
- * When $learninglogid is null, only section-based categories are returned (no custom categories).
+ * Categories are course-level (userid + courseid, learninglogid null).
  *
  * @param stdClass $course
  * @param int $userid
- * @param int|null $learninglogid activity instance id, or null for course-only view
+ * @param int|null $learninglogid unused; kept for API compatibility
  * @return array [ ['key' => 'section_1', 'name' => '...', 'postcount' => N ], ... ]
  */
 function learninglog_get_categories_for_nav(stdClass $course, int $userid, ?int $learninglogid = null): array {
@@ -290,41 +336,36 @@ function learninglog_get_categories_for_nav(stdClass $course, int $userid, ?int 
 
     $out = [];
     $userlog = learninglog_get_user_log($userid, $course->id);
-    $sectioncountwhere = 'userid = :userid AND courseid = :courseid AND sectionid = :sectionid';
-    $sectionparams = ['userid' => $userid, 'courseid' => $course->id];
-    if ($learninglogid !== null) {
-        $sectioncountwhere .= ' AND (learninglogid = :learninglogid OR learninglogid IS NULL)';
-        $sectionparams['learninglogid'] = $learninglogid;
-    } else {
-        $sectioncountwhere .= ' AND learninglogid IS NULL';
+    if (!$userlog) {
+        return $out;
     }
 
-    $sections = $DB->get_records('course_sections', ['course' => $course->id], 'section ASC');
-    foreach ($sections as $section) {
-        if ($section->section == 0) {
-            continue;
-        }
-        $params = $sectionparams + ['sectionid' => $section->id];
-        $count = $DB->count_records_sql(
-            "SELECT COUNT(*) FROM {learninglog_posts} WHERE $sectioncountwhere",
-            $params
-        );
-        $out[] = (object)[
-            'key' => 'section_' . $section->id,
-            'name' => get_section_name($course, $section),
-            'postcount' => (int) $count,
-        ];
-    }
-    if ($learninglogid !== null) {
-        $custom = $DB->get_records('learninglog_categories', [
-            'learninglogid' => $learninglogid,
-            'userid' => $userid,
-        ], 'sortorder ASC, name ASC');
-        foreach ($custom as $cat) {
+    // All categories are course-level: userid + courseid, learninglogid IS NULL.
+    $cats = $DB->get_records_select(
+        'learninglog_categories',
+        'userid = :userid AND courseid = :courseid AND learninglogid IS NULL',
+        ['userid' => $userid, 'courseid' => $course->id],
+        'sortorder ASC, name ASC'
+    );
+
+    foreach ($cats as $cat) {
+        if (!empty($cat->sectionid)) {
             $count = $DB->count_records_sql(
-                'SELECT COUNT(*) FROM {learninglog_postcats} pc JOIN {learninglog_posts} p ON p.id = pc.postid
-                 WHERE pc.categoryid = ? AND p.learninglogid = ? AND p.userid = ?',
-                [$cat->id, $learninglogid, $userid]
+                'SELECT COUNT(*) FROM {learninglog_posts} p
+                 WHERE p.userid = :userid AND p.courseid = :courseid AND p.sectionid = :sectionid',
+                ['userid' => $userid, 'courseid' => $course->id, 'sectionid' => $cat->sectionid]
+            );
+            $out[] = (object)[
+                'key' => 'section_' . $cat->sectionid,
+                'name' => format_string($cat->name),
+                'postcount' => (int) $count,
+            ];
+        } else {
+            $count = $DB->count_records_sql(
+                'SELECT COUNT(*) FROM {learninglog_postcats} pc
+                   JOIN {learninglog_posts} p ON p.id = pc.postid
+                 WHERE pc.categoryid = :catid AND p.userid = :userid AND p.courseid = :courseid',
+                ['catid' => $cat->id, 'userid' => $userid, 'courseid' => $course->id]
             );
             $out[] = (object)[
                 'key' => 'cat_' . $cat->id,
@@ -333,6 +374,7 @@ function learninglog_get_categories_for_nav(stdClass $course, int $userid, ?int 
             ];
         }
     }
+
     return $out;
 }
 
@@ -357,21 +399,36 @@ function learninglog_get_section_options(stdClass $course): array {
 }
 
 /**
- * Get user-created category options for this learning log (category id => name).
+ * Get category options for the post form (category id => name).
+ * Course-level: pass $courseid (and $learninglogid can be null). Activity-level: pass $learninglogid.
  *
- * @param int $learninglogid
+ * @param int|null $learninglogid activity instance id, or null for course-level
  * @param int $userid
- * @return array
+ * @param int|null $courseid required when $learninglogid is null
+ * @return array [ 'cat_N' => name, 'section_N' => name, ... ]
  */
-function learninglog_get_user_category_options(int $learninglogid, int $userid): array {
+function learninglog_get_user_category_options(?int $learninglogid, int $userid, ?int $courseid = null): array {
     global $DB;
-    $cats = $DB->get_records('learninglog_categories', [
-        'learninglogid' => $learninglogid,
-        'userid' => $userid,
-    ], 'sortorder ASC, name ASC');
+    if ($courseid !== null) {
+        $cats = $DB->get_records_select(
+            'learninglog_categories',
+            'userid = :userid AND courseid = :courseid AND learninglogid IS NULL',
+            ['userid' => $userid, 'courseid' => $courseid],
+            'sortorder ASC, name ASC'
+        );
+    } else {
+        $cats = $DB->get_records('learninglog_categories', [
+            'learninglogid' => $learninglogid,
+            'userid' => $userid,
+        ], 'sortorder ASC, name ASC');
+    }
     $out = [];
     foreach ($cats as $c) {
-        $out['cat_' . $c->id] = format_string($c->name);
+        if (!empty($c->sectionid)) {
+            $out['section_' . $c->sectionid] = format_string($c->name);
+        } else {
+            $out['cat_' . $c->id] = format_string($c->name);
+        }
     }
     return $out;
 }

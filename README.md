@@ -14,7 +14,7 @@ A Moodle plugin set that adds **Learning Log** — a reflective journal or blog 
 - **Optional AI** — Per-activity setting to enable AI-generated summaries and alt-text for posts (when configured).
 - **Import / export** — Import from WordPress (WXR) and export learning log content as WXR.
 - **Site-wide view** — Staff can view organisation-visible posts and site-wide learning logs (with filters by course category and course) from a dedicated page.
-- **Editor enhancement** — TinyMCE “Blog layouts” plugin for inserting image grids and sliders in post content.
+- **Optional TinyMCE Editor enhancement** — TinyMCE “Blog layouts” plugin for inserting image grids and sliders in post content.
 
 ---
 
@@ -28,7 +28,7 @@ This repository contains several plugins that work together. They must be instal
 | `blocks/learninglog`             | `blocks/learninglog`              |
 | `blocks/learninglog_recent`      | `blocks/learninglog_recent`       |
 | `local/learninglog`              | `local/learninglog`               |
-| `lib/editor/tiny/plugins/bloglayouts` | `lib/editor/tiny/plugins/bloglayouts` |
+| `bloglayouts`                    | `lib/editor/tiny/plugins/bloglayouts` |
 
 ---
 
@@ -49,11 +49,11 @@ Copy each component from this repository into your Moodle directory so that the 
 # Replace /path/to/moodle with your Moodle root path
 MOODLE=/path/to/moodle
 
-cp -r mod/learninglog        "$MOODLE/mod/"
-cp -r blocks/learninglog     "$MOODLE/blocks/"
+cp -r mod/learninglog           "$MOODLE/mod/"
+cp -r blocks/learninglog        "$MOODLE/blocks/"
 cp -r blocks/learninglog_recent "$MOODLE/blocks/"
-cp -r local/learninglog      "$MOODLE/local/"
-cp -r lib/editor/tiny/plugins/bloglayouts "$MOODLE/lib/editor/tiny/plugins/"
+cp -r local/learninglog         "$MOODLE/local/"
+cp -r bloglayouts               "$MOODLE/lib/editor/tiny/plugins/"
 ```
 
 ### 2. Run Moodle upgrade

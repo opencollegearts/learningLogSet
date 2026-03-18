@@ -65,13 +65,8 @@ if ($postid) {
     }
 }
 
-// Category options: sections always; add custom categories only when we have an activity.
-$sectionoptions = learninglog_get_section_options($course);
-$categoryoptions = $sectionoptions;
-if (!$courseonly && $learninglog) {
-    $customoptions = learninglog_get_user_category_options($learninglog->id, $USER->id);
-    $categoryoptions = array_merge($sectionoptions, $customoptions);
-}
+// Category options: course-level (sections + custom from learninglog_categories).
+$categoryoptions = learninglog_get_user_category_options(null, $USER->id, $course->id);
 
 $editoroptions = [
     'context' => $context,

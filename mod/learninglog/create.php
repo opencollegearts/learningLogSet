@@ -47,11 +47,25 @@ $banneroptions = [
     'accepted_types' => ['image'],
 ];
 $coursecontext = context_course::instance($course->id);
+$manage_categories = ($courseid && !$cmid);
 $customdata = [
     'editoroptions' => $editoroptions,
     'banneroptions' => $banneroptions,
     'editing' => !empty($userlog),
+    'manage_categories' => $manage_categories,
+    'categories' => [],
 ];
+
+// Load categories for inline management only when opened from block (course-level).
+if ($manage_categories) {
+    learninglog_ensure_section_categories_for_course($USER->id, $course->id);
+    $customdata['categories'] = $DB->get_records_select(
+        'learninglog_categories',
+        'userid = :userid AND courseid = :courseid AND learninglogid IS NULL',
+        ['userid' => $USER->id, 'courseid' => $course->id],
+        'sortorder ASC, name ASC'
+    );
+}
 $mform = new createlog_form(null, $customdata, 'post', '', ['class' => 'createlog-form']);
 $defaults = (object)[
     'courseid' => $course->id,
@@ -96,6 +110,67 @@ if ($data = $mform->get_data()) {
             $userlog->id,
             $banneroptions
         );
+    }
+
+    // Process inline category edits when opened from block (course-level only).
+    if ($manage_categories) {
+        $existingnames = optional_param_array('category_existing', [], PARAM_TEXT);
+        $deleteflags = optional_param_array('category_delete', [], PARAM_BOOL);
+        $newnames = optional_param_array('category_new', [], PARAM_TEXT);
+
+        $categories = $DB->get_records_select(
+            'learninglog_categories',
+            'userid = :userid AND courseid = :courseid AND learninglogid IS NULL',
+            ['userid' => $USER->id, 'courseid' => $course->id]
+        );
+
+        // Update or delete existing categories.
+        if (!empty($existingnames)) {
+            foreach ($categories as $cat) {
+                $id = (int)$cat->id;
+                $name = trim($existingnames[$id] ?? '');
+                $delete = !empty($deleteflags[$id]);
+
+                // Never delete section-linked categories.
+                $issectionlinked = !empty($cat->sectionid);
+                if ($delete && !$issectionlinked) {
+                    $DB->delete_records('learninglog_postcats', ['categoryid' => $id]);
+                    $DB->delete_records('learninglog_categories', ['id' => $id]);
+                    continue;
+                }
+
+                if ($name !== '' && $name !== $cat->name) {
+                    $cat->name = $name;
+                    $cat->timemodified = time();
+                    $DB->update_record('learninglog_categories', $cat);
+                }
+            }
+        }
+
+        // Insert new categories (course-level: courseid set, learninglogid null).
+        foreach ($newnames as $newname) {
+            $newname = trim($newname);
+            if ($newname === '') {
+                continue;
+            }
+            $maxsort = (int)$DB->get_field_sql(
+                'SELECT COALESCE(MAX(sortorder), 0) FROM {learninglog_categories} WHERE userid = ? AND courseid = ? AND learninglogid IS NULL',
+                [$USER->id, $course->id]
+            );
+            $record = (object)[
+                'courseid' => $course->id,
+                'learninglogid' => null,
+                'userid' => $USER->id,
+                'parentid' => null,
+                'sectionid' => null,
+                'name' => $newname,
+                'slug' => null,
+                'sortorder' => $maxsort + 1,
+                'timecreated' => time(),
+                'timemodified' => time(),
+            ];
+            $DB->insert_record('learninglog_categories', $record);
+        }
     }
     if ($cmid) {
         redirect(new moodle_url('/mod/learninglog/view.php', ['id' => $cmid]));

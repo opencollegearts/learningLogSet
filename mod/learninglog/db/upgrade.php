@@ -167,6 +167,60 @@ function xmldb_learninglog_upgrade(int $oldversion): bool {
         upgrade_mod_savepoint(true, 2026030204, 'learninglog');
     }
 
+    if ($oldversion < 2026030208) {
+        // Add optional sectionid to learninglog_categories so categories can track origin course section.
+        $table = new xmldb_table('learninglog_categories');
+        $field = new xmldb_field('sectionid', XMLDB_TYPE_INTEGER, '10', null, null, null, null, 'parentid');
+        if (!$dbman->field_exists($table, $field)) {
+            $dbman->add_field($table, $field);
+        }
+        upgrade_mod_savepoint(true, 2026030208, 'learninglog');
+    }
+
+    if ($oldversion < 2026030210) {
+        // Categories are course-level: add courseid, make learninglogid nullable.
+        $table = new xmldb_table('learninglog_categories');
+        $courseid = new xmldb_field('courseid', XMLDB_TYPE_INTEGER, '10', null, null, null, null, 'id');
+        if (!$dbman->field_exists($table, $courseid)) {
+            $dbman->add_field($table, $courseid);
+            // Backfill from learninglog (learninglogid was NOT NULL in old schema).
+            $sql = "UPDATE {learninglog_categories} c
+                      SET c.courseid = (SELECT l.course FROM {learninglog} l WHERE l.id = c.learninglogid)
+                    WHERE c.learninglogid IS NOT NULL";
+            $DB->execute($sql);
+            $courseidnotnull = new xmldb_field('courseid', XMLDB_TYPE_INTEGER, '10', null, XMLDB_NOTNULL, null, null, 'id');
+            $dbman->change_field_notnull($table, $courseidnotnull);
+        }
+        // Add courseid foreign key if missing.
+        $courseidkey = new xmldb_key('courseid', XMLDB_KEY_FOREIGN, ['courseid'], 'course', ['id']);
+        if (!$dbman->key_exists($table, $courseidkey)) {
+            $dbman->add_key($table, $courseidkey);
+        }
+        // Make learninglogid nullable and set to null so all categories are course-level.
+        $key = new xmldb_key('learninglogid', XMLDB_KEY_FOREIGN, ['learninglogid'], 'learninglog', ['id']);
+        try {
+            $dbman->drop_key($table, $key);
+        } catch (Exception $e) {
+            // Key may have different internal name.
+        }
+        $f = new xmldb_field('learninglogid', XMLDB_TYPE_INTEGER, '10', null, null, null, null, 'courseid');
+        if ($dbman->field_exists($table, $f)) {
+            $DB->set_field('learninglog_categories', 'learninglogid', null, []);
+            $dbman->change_field_notnull($table, $f);
+        }
+        $dbman->add_key($table, $key);
+        // Replace old activity-based index with course-level index.
+        $oldindex = new xmldb_index('learninglog_sort_idx', XMLDB_INDEX_NOTUNIQUE, ['learninglogid', 'sortorder']);
+        if ($dbman->index_exists($table, $oldindex)) {
+            $dbman->drop_index($table, $oldindex);
+        }
+        $index = new xmldb_index('user_course_sort_idx', XMLDB_INDEX_NOTUNIQUE, ['userid', 'courseid', 'sortorder']);
+        if (!$dbman->index_exists($table, $index)) {
+            $dbman->add_index($table, $index);
+        }
+        upgrade_mod_savepoint(true, 2026030210, 'learninglog');
+    }
+
     return true;
 }
 
