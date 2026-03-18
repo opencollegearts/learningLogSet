@@ -51,6 +51,7 @@ $PAGE->requires->js(new moodle_url('https://cdn.jsdelivr.net/npm/glightbox@3/dis
 $PAGE->requires->css(new moodle_url('https://cdn.jsdelivr.net/npm/swiper@11/swiper-bundle.min.css'));
 $PAGE->requires->js(new moodle_url('https://cdn.jsdelivr.net/npm/swiper@11/swiper-bundle.min.js'), true);
 $PAGE->requires->js_call_amd('tiny_bloglayouts/frontend', 'init');
+$PAGE->requires->js_call_amd('mod_learninglog/scrollfade', 'init');
 
 $canwrite = $cm ? has_capability('mod/learninglog:write', $context) : has_capability('mod/learninglog:write', $context);
 $haslog = learninglog_has_user_log_by_course($USER->id, $course->id);
