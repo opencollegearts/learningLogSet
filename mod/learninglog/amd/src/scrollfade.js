@@ -5,6 +5,15 @@
 define('mod_learninglog/scrollfade', [], function() {
     return {
         init: function() {
+            // Grid tiles already use .learninglog-fade-in.
+            // Post detail pages may not: ensure all post images get the class.
+            var postImages = document.querySelectorAll('.learninglog-post-detail img');
+            postImages.forEach(function(el) {
+                if (!el.classList.contains('learninglog-fade-in')) {
+                    el.classList.add('learninglog-fade-in');
+                }
+            });
+
             var elements = document.querySelectorAll('.learninglog-fade-in');
             if (!elements.length) {
                 return;

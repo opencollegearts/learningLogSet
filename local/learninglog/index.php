@@ -3,6 +3,9 @@
 
 require('../../config.php');
 require_once($CFG->dirroot . '/mod/learninglog/locallib.php');
+if (file_exists($CFG->dirroot . '/blocks/google_site_creator/lib.php')) {
+    require_once($CFG->dirroot . '/blocks/google_site_creator/lib.php');
+}
 
 require_login();
 
@@ -46,11 +49,35 @@ if ($view === 'posts') {
           ORDER BY p.timecreated DESC";
     $params = ['visibility' => 'org'];
     $posts = $DB->get_records_sql($sql, $params, 0, 100);
+    $postsarray = is_array($posts) ? array_values($posts) : [];
 
-    if ($posts) {
+    // Fetch Google Sites with visibility "All of OCA" (block_google_site_creator) for discovery alongside learning logs.
+    $sites = [];
+    if (function_exists('block_google_site_creator_get_sites_for_index')) {
+        $sites = block_google_site_creator_get_sites_for_index(100);
+    }
+
+    $cards = [];
+    if ($postsarray) {
         $fakecourse = (object)['id' => SITEID];
-        $postsarray = is_array($posts) ? array_values($posts) : [$posts];
         $gridcontext = learninglog_get_post_grid_context($fakecourse, $postsarray, $systemcontext, ['_global' => true]);
+        foreach ($gridcontext->cards as $i => $card) {
+            $card->sorttime = $postsarray[$i]->timecreated;
+            $cards[] = $card;
+        }
+    }
+    if ($sites && function_exists('block_google_site_creator_build_cards_for_grid')) {
+        $sitecards = block_google_site_creator_build_cards_for_grid($sites);
+        foreach ($sitecards as $c) {
+            $cards[] = $c;
+        }
+    }
+
+    if ($cards) {
+        usort($cards, function ($a, $b) {
+            return ($b->sorttime ?? 0) - ($a->sorttime ?? 0);
+        });
+        $gridcontext = (object)['cards' => $cards];
         echo $OUTPUT->render_from_template('mod_learninglog/post_grid', $gridcontext);
     } else {
         echo $OUTPUT->notification(get_string('noglobalposts', 'local_learninglog'), \core\output\notification::NOTIFY_INFO);
@@ -112,9 +139,55 @@ if ($view === 'posts') {
     echo html_writer::end_tag('form');
     echo $OUTPUT->box_end();
 
+    $cards = [];
     if ($logs) {
         $logsarray = array_values($logs);
         $gridcontext = learninglog_get_log_grid_context($logsarray);
+        if (!empty($gridcontext->cards)) {
+            foreach ($gridcontext->cards as $card) {
+                $cards[] = $card;
+            }
+        }
+    }
+
+    // Add Google Sites shared with "All of OCA" as Learning Logs in this view.
+    if ($DB->get_manager()->table_exists('block_google_site_creator_sites')) {
+        $sitesql = "SELECT s.id, s.title, s.userid, s.courseid, s.url,
+                           c.fullname AS coursename, c.category AS categoryid
+                      FROM {block_google_site_creator_sites} s
+                      JOIN {course} c ON c.id = s.courseid
+                     WHERE s.visibility = :visibility";
+        $siteparams = ['visibility' => 'all_oca'];
+        if ($categoryid > 0) {
+            $sitesql .= " AND c.category = :sitecategoryid";
+            $siteparams['sitecategoryid'] = $categoryid;
+        }
+        if ($courseid > 0) {
+            $sitesql .= " AND s.courseid = :sitecourseid";
+            $siteparams['sitecourseid'] = $courseid;
+        }
+        $sitesql .= " ORDER BY c.fullname, s.title";
+        $sites = $DB->get_records_sql($sitesql, $siteparams);
+
+        foreach ($sites as $site) {
+            $user = \core_user::get_user($site->userid, '*', IGNORE_MISSING);
+            $fullname = $user ? fullname($user) : get_string('unknownuser', 'core');
+
+            $card = new stdClass();
+            $card->title = format_string($site->title);
+            $card->url = $site->url;
+            $card->summary = get_string('googlesitesummary', 'local_learninglog');
+            $card->coursename = format_string($site->coursename);
+            $card->fullname = $fullname;
+            $card->bannerurl = function_exists('block_google_site_creator_get_site_banner_url')
+                ? block_google_site_creator_get_site_banner_url($site)
+                : null;
+            $cards[] = $card;
+        }
+    }
+
+    if ($cards) {
+        $gridcontext = (object)['cards' => $cards];
         echo $OUTPUT->render_from_template('mod_learninglog/log_grid', $gridcontext);
     } else {
         echo $OUTPUT->notification(get_string('nositewidelogs', 'local_learninglog'), \core\output\notification::NOTIFY_INFO);

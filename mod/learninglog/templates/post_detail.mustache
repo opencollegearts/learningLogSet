@@ -2,7 +2,7 @@
     {{#bannerurl}}
     <div class="learninglog-post-banner mb-4">
         <div class="ratio ratio-21x9">
-            <img src="{{bannerurl}}" class="w-100 object-fit-cover" alt="">
+            <img src="{{bannerurl}}" class="w-100 object-fit-cover learninglog-fade-in" alt="">
         </div>
     </div>
     {{/bannerurl}}
@@ -31,8 +31,18 @@
         <h2 class="h5 mb-3">{{#str}}comments, mod_learninglog{{/str}}</h2>
         <ul class="list-unstyled mb-3">
             {{#comments}}
-            <li class="mb-3 pb-2 border-bottom">
-                <p class="small text-muted mb-1">{{fullname}} — {{date}}{{#deleteurl}} &middot; <a href="{{deleteurl}}" class="text-danger">{{#str}}deletecomment, mod_learninglog{{/str}}</a>{{/deleteurl}}</p>
+            <li class="mb-3 pb-2 border-bottom {{#istutor}}learninglog-comment-tutor{{/istutor}}">
+                <p class="small text-muted mb-1">
+                    {{{tutoriconhtml}}}
+                    {{fullname}} — {{date}}
+                    {{#istutorprivate}}
+                    <span class="badge bg-secondary ms-1">{{#str}}tutorcommentprivate, mod_learninglog{{/str}}</span>
+                    {{/istutorprivate}}
+                    {{#istutorpublic}}
+                    <span class="badge bg-info text-dark ms-1">{{#str}}tutorcommentpublic, mod_learninglog{{/str}}</span>
+                    {{/istutorpublic}}
+                    {{#deleteurl}} &middot; <a href="{{deleteurl}}" class="text-danger">{{#str}}deletecomment, mod_learninglog{{/str}}</a>{{/deleteurl}}
+                </p>
                 <p class="mb-0">{{content}}</p>
             </li>
             {{/comments}}
@@ -44,6 +54,19 @@
                 <label for="learninglog-comment-content" class="form-label">{{#str}}addcomment, mod_learninglog{{/str}}</label>
                 <textarea name="content" id="learninglog-comment-content" class="form-control" rows="3" required></textarea>
             </div>
+            {{#showtutorcommentoptions}}
+            <fieldset class="mb-2">
+                <legend class="form-label fs-6 mb-2">{{#str}}tutorcommentvisibility, mod_learninglog{{/str}}</legend>
+                <div class="form-check">
+                    <input class="form-check-input" type="radio" name="tutor_visibility" id="tutor_visibility_private" value="private" checked>
+                    <label class="form-check-label" for="tutor_visibility_private">{{#str}}tutorcommentprivate, mod_learninglog{{/str}}</label>
+                </div>
+                <div class="form-check">
+                    <input class="form-check-input" type="radio" name="tutor_visibility" id="tutor_visibility_public" value="public">
+                    <label class="form-check-label" for="tutor_visibility_public">{{#str}}tutorcommentpublic, mod_learninglog{{/str}}</label>
+                </div>
+            </fieldset>
+            {{/showtutorcommentoptions}}
             <button type="submit" class="btn btn-primary btn-sm">{{#str}}submitcomment, mod_learninglog{{/str}}</button>
         </form>
         {{/showcommentform}}

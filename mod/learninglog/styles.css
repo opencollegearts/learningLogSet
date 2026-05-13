@@ -126,6 +126,16 @@
     min-height: 220px;
 }
 
+/* Scroll-triggered fade-in for banner images (IntersectionObserver toggles classes). */
+.learninglog-fade-in {
+    opacity: 0;
+    transition: opacity 1.0s ease;
+}
+
+.learninglog-fade-in.learninglog-visible {
+    opacity: 1;
+}
+
 .learninglog-post-grid .learninglog-post-tile.has-banner .tile-background {
     position: absolute;
     inset: 0;
@@ -321,4 +331,19 @@
 .learninglog-comments {
     max-width: 960px;
     margin: 0 auto;
+}
+
+.learninglog-comment-tutor {
+    border-left: 3px solid #0f6cbf;
+    padding-left: 0.75rem;
+    margin-left: -0.75rem;
+}
+
+.learninglog-block-comments .learninglog-block-comment--tutor {
+    border-left: 3px solid #0f6cbf;
+    padding-left: 0.5rem;
+}
+
+.learninglog-tutor-comment-icon {
+    vertical-align: -0.125em;
 }

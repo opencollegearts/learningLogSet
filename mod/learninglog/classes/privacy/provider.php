@@ -33,6 +33,13 @@ class provider implements
             'aialttext' => 'privacy:metadata:learninglog_posts:aialttext',
         ], 'privacy:metadata:learninglog_posts');
 
+        $collection->add_database_table('learninglog_comments', [
+            'userid' => 'privacy:metadata:learninglog_comments:userid',
+            'content' => 'privacy:metadata:learninglog_comments:content',
+            'istutor' => 'privacy:metadata:learninglog_comments:istutor',
+            'tutorvisibility' => 'privacy:metadata:learninglog_comments:tutorvisibility',
+        ], 'privacy:metadata:learninglog_comments');
+
         return $collection;
     }
 

@@ -56,8 +56,21 @@ $PAGE->requires->js_call_amd('mod_learninglog/scrollfade', 'init');
 $canwrite = $cm ? has_capability('mod/learninglog:write', $context) : has_capability('mod/learninglog:write', $context);
 $haslog = learninglog_has_user_log_by_course($USER->id, $course->id);
 
-// When using an activity, require the student to have created their log first. When courseid-only, require log to view.
-if (!$haslog) {
+// Viewing a specific post: allow tutors and other eligible viewers without creating their own log first.
+$singlepost = null;
+if ($postid > 0) {
+    $singlepost = $DB->get_record('learninglog_posts', [
+        'id' => $postid,
+        'courseid' => $course->id,
+    ], '*', IGNORE_MISSING);
+    if (!$singlepost) {
+        throw new moodle_exception('invalidpost', 'mod_learninglog');
+    }
+    if (!learninglog_user_can_view_post($singlepost, $course, $context, (int) $USER->id)) {
+        throw new moodle_exception('nopermissions', 'error', '', 'view this post');
+    }
+} else if (!$haslog) {
+    // Hub view (grid): need a personal learning log for this course.
     echo $OUTPUT->header();
     echo $OUTPUT->heading(get_string('createfirst', 'mod_learninglog'), 2);
     echo $OUTPUT->box(get_string('createfirstmessage', 'mod_learninglog') . ' ' .
@@ -67,8 +80,12 @@ if (!$haslog) {
     exit;
 }
 
+// When viewing someone else's post, omit the personal log hero/categories (not your log).
+$minimalchrome = ($singlepost && (int) $singlepost->userid !== (int) $USER->id);
+
 echo $OUTPUT->header();
 
+if (!$minimalchrome) {
 // Log banner URL for hero (user's learning log banner image).
 $logbannerurl = $userlog ? learninglog_get_log_banner_url($userlog) : null;
 
@@ -84,7 +101,7 @@ echo html_writer::start_div('d-flex flex-wrap align-items-end justify-content-be
 // Left: title, description, edit button.
 echo html_writer::start_div('learninglog-hero-banner-content');
 echo html_writer::tag('h1', $logtitle, ['class' => 'learninglog-hero-title']);
-if (!empty($userlog->description)) {
+if ($userlog && !empty($userlog->description)) {
     echo html_writer::div(
         format_text($userlog->description, FORMAT_HTML, ['context' => $context]),
         'learninglog-hero-description'
@@ -117,12 +134,16 @@ if ($canwrite) {
 echo html_writer::end_div(); // .d-flex
 echo html_writer::end_div(); // .learninglog-hero-banner-inner
 echo html_writer::end_div(); // .learninglog-hero-banner
+} // End !$minimalchrome (personal log chrome).
 
 // Category navigation: use user's linked activity for consistent post set.
-$categories = learninglog_get_categories_for_nav($course, $USER->id, $userlog->learninglogid);
+$categories = [];
+if (!$minimalchrome && $userlog) {
+    $categories = learninglog_get_categories_for_nav($course, $USER->id, $userlog->learninglogid);
+}
 $baseurl = new moodle_url('/mod/learninglog/view.php', $viewparams);
 
-if (!empty($categories)) {
+if (!$minimalchrome && !empty($categories)) {
     echo html_writer::start_div('learninglog-category-nav mt-2 mb-3');
 
     // Show the currently selected category label (or "All posts") next to the button.
@@ -186,7 +207,7 @@ if (!empty($categories)) {
 }
 
 // Add Learning Log Entry button (above post cards).
-if ($canwrite) {
+if (!$minimalchrome && $canwrite) {
     if ($cm) {
         $addurl = new moodle_url('/mod/learninglog/post.php', ['id' => $cm->id, 'fromactivity' => 1]);
         $modinfo = get_fast_modinfo($course);
@@ -204,7 +225,7 @@ if ($canwrite) {
 }
 
 // Activity prompt (if viewing via activity and it has intro).
-if ($cm && $learninglog && (trim($learninglog->name) !== '' || trim($learninglog->intro) !== '')) {
+if (!$minimalchrome && $cm && $learninglog && (trim($learninglog->name) !== '' || trim($learninglog->intro) !== '')) {
     $prompthtml = html_writer::tag('strong', get_string('prompt', 'mod_learninglog') . ': ') . format_string($learninglog->name);
     if (trim($learninglog->intro) !== '') {
         $prompthtml .= html_writer::empty_tag('br') . format_module_intro('learninglog', $learninglog, $cm->id);
@@ -213,17 +234,8 @@ if ($cm && $learninglog && (trim($learninglog->name) !== '' || trim($learninglog
 }
 
 if ($postid) {
-    // Single post view: post must be in this course; access is owner or visibility allows viewer.
-    $post = $DB->get_record('learninglog_posts', [
-        'id' => $postid,
-        'courseid' => $course->id,
-    ], '*', MUST_EXIST);
-    $canviewpost = ($post->userid == $USER->id) ||
-        ($post->visibility === 'org' && has_capability('local/learninglog:vieworg', context_system::instance())) ||
-        ($post->visibility === 'course');
-    if (!$canviewpost) {
-        throw new moodle_exception('nopermissions', 'error', '', 'view this post');
-    }
+    // Single post view (already authorised above when $singlepost was loaded).
+    $post = $singlepost;
     $user = \core_user::get_user($post->userid, '*', MUST_EXIST);
 
     $postcontext = learninglog_get_context_for_post($post, $course);
@@ -259,11 +271,29 @@ if ($postid) {
     }
 
     $cancomment = has_capability('mod/learninglog:comment', $context) && !empty($post->allowcomments);
+    $showtutorcommentoptions = $cancomment && learninglog_user_is_tutor_in_course((int) $USER->id, (int) $course->id);
     $comments = [];
     if ($DB->get_manager()->table_exists('learninglog_comments')) {
         $commentrows = $DB->get_records('learninglog_comments', ['postid' => $post->id], 'timecreated ASC');
         foreach ($commentrows as $c) {
+            if (!learninglog_comment_visible_to_viewer($c, $post, (int) $USER->id)) {
+                continue;
+            }
             $commentuser = \core_user::get_user($c->userid, '*', IGNORE_MISSING);
+            $istutor = !empty($c->istutor);
+            $tutorvis = isset($c->tutorvisibility) ? (string) $c->tutorvisibility : '';
+            $tutoriconhtml = '';
+            if ($istutor) {
+                $tutoriconhtml = \html_writer::tag(
+                    'span',
+                    '',
+                    [
+                        'class' => 'icon fa fa-graduation-cap fa-fw text-primary learninglog-tutor-comment-icon',
+                        'title' => get_string('tutorcomment', 'mod_learninglog'),
+                        'aria-hidden' => 'true',
+                    ]
+                );
+            }
             $comments[] = (object)[
                 'id' => $c->id,
                 'fullname' => $commentuser ? fullname($commentuser) : get_string('unknownuser', 'mod_learninglog'),
@@ -271,6 +301,10 @@ if ($postid) {
                 'content' => format_string($c->content),
                 'candelete' => ($c->userid == $USER->id),
                 'deleteurl' => ($c->userid == $USER->id) ? (new moodle_url('/mod/learninglog/comment.php', $viewparams + ['postid' => $post->id, 'deletecomment' => $c->id, 'sesskey' => sesskey()]))->out(false) : null,
+                'istutor' => $istutor,
+                'istutorprivate' => $istutor && $tutorvis === 'private',
+                'istutorpublic' => $istutor && $tutorvis === 'public',
+                'tutoriconhtml' => $tutoriconhtml,
             ];
         }
     }
@@ -297,6 +331,7 @@ if ($postid) {
         'comments' => $comments,
         'hascommentsection' => $hascommentsection,
         'showcommentform' => $cancomment,
+        'showtutorcommentoptions' => $showtutorcommentoptions,
         'commentformaction' => $commentformurl->out(false),
         'sesskey' => sesskey(),
     ];

@@ -20,4 +20,5 @@ $string['author'] = 'Author';
 $string['view'] = 'View';
 $string['nositewidelogs'] = 'No site-wide learning logs found.';
 $string['viewlogheading'] = 'Learning log: {$a}';
+$string['googlesitesummary'] = 'Google Site learning log';
 

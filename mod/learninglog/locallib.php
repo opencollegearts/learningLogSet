@@ -552,3 +552,114 @@ function learninglog_get_post_category_display_name(stdClass $post, stdClass $co
     return '';
 }
 
+/**
+ * Role IDs that count as "Tutor" for tutor comments (OCA Moodle).
+ *
+ * @return int[]
+ */
+function learninglog_get_tutor_role_ids(): array {
+    return [1, 2, 3, 4, 11];
+}
+
+/**
+ * Whether the user has any of the tutor roles in the given course.
+ *
+ * @param int $userid
+ * @param int $courseid
+ * @return bool
+ */
+function learninglog_user_is_tutor_in_course(int $userid, int $courseid): bool {
+    if ($userid <= 0) {
+        return false;
+    }
+    $context = context_course::instance($courseid);
+    $roles = get_user_roles($context, $userid, false);
+    $tutorids = array_flip(learninglog_get_tutor_role_ids());
+    foreach ($roles as $role) {
+        if (isset($tutorids[(int) $role->roleid])) {
+            return true;
+        }
+    }
+    return false;
+}
+
+/**
+ * Whether a user can see private tutor feedback / moderate (staff) for a course.
+ *
+ * @param int $courseid
+ * @param int $userid
+ * @return bool
+ */
+function learninglog_user_can_moderate_learninglog_in_course(int $courseid, int $userid): bool {
+    $coursecontext = context_course::instance($courseid);
+    if (has_capability('moodle/course:manageactivities', $coursecontext, $userid)) {
+        return true;
+    }
+    if (has_capability('mod/learninglog:viewall', $coursecontext, $userid)) {
+        return true;
+    }
+    $modinfo = get_fast_modinfo($courseid);
+    foreach ($modinfo->get_instances_of('learninglog') as $cm) {
+        $modctx = context_module::instance($cm->id);
+        if (has_capability('mod/learninglog:viewall', $modctx, $userid)) {
+            return true;
+        }
+    }
+    return false;
+}
+
+/**
+ * Whether a user may view a learning log post (single-post view / permalinks).
+ *
+ * Staff with {@see learninglog_user_can_moderate_learninglog_in_course()} may view any post
+ * in the course. Others: own posts; org visibility + cap; course visibility + enrolment.
+ *
+ * @param stdClass $post learninglog_posts row
+ * @param stdClass $course course row
+ * @param context $context Course or module context (used for is_enrolled)
+ * @param int $userid viewer
+ * @return bool
+ */
+function learninglog_user_can_view_post(stdClass $post, stdClass $course, context $context, int $userid): bool {
+    if ((int) $post->userid === (int) $userid) {
+        return true;
+    }
+    if (learninglog_user_can_moderate_learninglog_in_course((int) $course->id, $userid)) {
+        return true;
+    }
+    if ($post->visibility === 'org') {
+        return has_capability('local/learninglog:vieworg', context_system::instance(), $userid);
+    }
+    if ($post->visibility === 'course') {
+        return is_enrolled($context, $userid);
+    }
+    return false;
+}
+
+/**
+ * Whether a comment row should be shown to the current viewer (handles private tutor notes).
+ *
+ * @param stdClass $comment learninglog_comments row
+ * @param stdClass $post learninglog_posts row
+ * @param int $viewerid
+ * @return bool
+ */
+function learninglog_comment_visible_to_viewer(stdClass $comment, stdClass $post, int $viewerid): bool {
+    $istutor = !empty($comment->istutor);
+    if (!$istutor) {
+        return true;
+    }
+    $vis = isset($comment->tutorvisibility) ? trim((string) $comment->tutorvisibility) : '';
+    if ($vis === 'public') {
+        return true;
+    }
+    // private, empty, or unknown: only post author, tutor who wrote it, or staff (viewall).
+    if ((int) $post->userid === (int) $viewerid) {
+        return true;
+    }
+    if ((int) $comment->userid === (int) $viewerid) {
+        return true;
+    }
+    return learninglog_user_can_moderate_learninglog_in_course((int) $post->courseid, $viewerid);
+}
+

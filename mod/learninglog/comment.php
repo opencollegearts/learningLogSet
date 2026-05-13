@@ -30,10 +30,7 @@ if ((int)$post->courseid !== (int)$course->id) {
 }
 
 $cancomment = has_capability('mod/learninglog:comment', $context);
-$canview = ($post->userid == $USER->id) ||
-    ($post->visibility === 'org' && has_capability('local/learninglog:vieworg', context_system::instance())) ||
-    ($post->visibility === 'course' && is_enrolled($context, $USER->id));
-if (!$canview) {
+if (!learninglog_user_can_view_post($post, $course, $context, (int) $USER->id)) {
     throw new moodle_exception('nopermissions', 'error', '', 'view post');
 }
 
@@ -51,6 +48,12 @@ $content = optional_param('content', '', PARAM_RAW);
 if ($content !== '' && $cancomment && !empty($post->allowcomments) && confirm_sesskey()) {
     $content = trim($content);
     if ($content !== '') {
+        $istutor = learninglog_user_is_tutor_in_course((int) $USER->id, (int) $course->id) ? 1 : 0;
+        $tutorvisibility = null;
+        if ($istutor) {
+            $tv = optional_param('tutor_visibility', 'private', PARAM_ALPHA);
+            $tutorvisibility = ($tv === 'public') ? 'public' : 'private';
+        }
         $record = (object)[
             'postid' => $postid,
             'userid' => $USER->id,
@@ -58,7 +61,11 @@ if ($content !== '' && $cancomment && !empty($post->allowcomments) && confirm_se
             'contentformat' => FORMAT_PLAIN,
             'timecreated' => time(),
             'timemodified' => time(),
+            'istutor' => $istutor,
         ];
+        if ($istutor) {
+            $record->tutorvisibility = $tutorvisibility;
+        }
         $DB->insert_record('learninglog_comments', $record);
     }
 }

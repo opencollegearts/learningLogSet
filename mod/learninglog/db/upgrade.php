@@ -193,8 +193,10 @@ function xmldb_learninglog_upgrade(int $oldversion): bool {
         }
         // Add courseid foreign key if missing.
         $courseidkey = new xmldb_key('courseid', XMLDB_KEY_FOREIGN, ['courseid'], 'course', ['id']);
-        if (!$dbman->key_exists($table, $courseidkey)) {
+        try {
             $dbman->add_key($table, $courseidkey);
+        } catch (Exception $e) {
+            // Key may already exist.
         }
         // Make learninglogid nullable and set to null so all categories are course-level.
         $key = new xmldb_key('learninglogid', XMLDB_KEY_FOREIGN, ['learninglogid'], 'learninglog', ['id']);
@@ -205,6 +207,87 @@ function xmldb_learninglog_upgrade(int $oldversion): bool {
         }
         $f = new xmldb_field('learninglogid', XMLDB_TYPE_INTEGER, '10', null, null, null, null, 'courseid');
         if ($dbman->field_exists($table, $f)) {
+            // Some older installs still have indexes that depend on learninglogid
+            // (e.g. (learninglogid, sortorder)). Moodle's DDL layer blocks changing
+            // the NOT NULL constraint unless those dependencies are removed first.
+            // Drop any indexes that include learninglogid in the underlying table.
+            $dbfamily = $DB->get_dbfamily();
+            $tblname = $CFG->prefix . 'learninglog_categories';
+            if ($dbfamily === 'mysql' || $dbfamily === 'mariadb') {
+                // Moodle's DDL dependency errors often include a fully-qualified index name
+                // such as "mdl_learcate_leasor_ix". Drop that exact index first to avoid
+                // any INFORMATION_SCHEMA filtering quirks on the staging host.
+                $indexCandidates = array_values(array_unique(array_filter([
+                    $CFG->prefix . 'learcate_leasor_ix',
+                    'learcate_leasor_ix',
+                ])));
+                foreach ($indexCandidates as $cand) {
+                    try {
+                        $DB->execute("ALTER TABLE `{$tblname}` DROP INDEX `{$cand}`");
+                    } catch (Exception $e1) {
+                        try {
+                            $DB->execute("DROP INDEX `{$cand}` ON `{$tblname}`");
+                        } catch (Exception $e2) {
+                            // Ignore if already removed.
+                        }
+                    }
+                }
+
+                $schema = '';
+                if (!empty($CFG->dbname) && is_string($CFG->dbname)) {
+                    $schema = $CFG->dbname;
+                }
+                $tableschemawhere = $schema !== '' ? "= '" . addslashes($schema) . "'" : "= DATABASE()";
+
+                $indexes = $DB->get_records_sql("
+                    SELECT DISTINCT INDEX_NAME AS idx
+                      FROM information_schema.STATISTICS
+                     WHERE TABLE_SCHEMA $tableschemawhere
+                       AND TABLE_NAME = 'learninglog_categories'
+                       AND COLUMN_NAME = 'learninglogid'
+                ");
+                foreach ($indexes as $row) {
+                    $idx = (string)($row->idx ?? '');
+                    if ($idx === '') {
+                        continue;
+                    }
+                    try {
+                        // MySQL syntax
+                        $DB->execute("ALTER TABLE `{$tblname}` DROP INDEX `{$idx}`");
+                    } catch (Exception $e1) {
+                        try {
+                            // Alternate syntax
+                            $DB->execute("DROP INDEX `{$idx}` ON `{$tblname}`");
+                        } catch (Exception $e2) {
+                            debugging(
+                                'Failed dropping dependent index ' . $idx . ' on ' . $tblname .
+                                ': ' . $e2->getMessage(),
+                                DEBUG_DEVELOPER
+                            );
+                        }
+                    }
+                }
+            } else if ($dbfamily === 'postgres') {
+                $indexes = $DB->get_records_sql("
+                    SELECT DISTINCT indexname AS idx
+                      FROM pg_indexes
+                     WHERE schemaname = 'public'
+                       AND tablename = 'learninglog_categories'
+                       AND indexdef ILIKE '%learninglogid%'
+                ");
+                foreach ($indexes as $row) {
+                    $idx = (string)($row->idx ?? '');
+                    if ($idx === '') {
+                        continue;
+                    }
+                    try {
+                        $DB->execute('DROP INDEX IF EXISTS "' . addslashes($idx) . '"');
+                    } catch (Exception $e) {
+                        // Ignore if already removed.
+                    }
+                }
+            }
+
             $DB->set_field('learninglog_categories', 'learninglogid', null, []);
             $dbman->change_field_notnull($table, $f);
         }
@@ -219,6 +302,55 @@ function xmldb_learninglog_upgrade(int $oldversion): bool {
             $dbman->add_index($table, $index);
         }
         upgrade_mod_savepoint(true, 2026030210, 'learninglog');
+    }
+
+    if ($oldversion < 2026031801) {
+        // Idempotent: ensure learninglog_categories has courseid (fixes sites where 2026030210 never ran or failed).
+        $table = new xmldb_table('learninglog_categories');
+        $courseid = new xmldb_field('courseid', XMLDB_TYPE_INTEGER, '10', null, null, null, null, 'id');
+        if (!$dbman->field_exists($table, $courseid)) {
+            $dbman->add_field($table, $courseid);
+            // Backfill: from learninglog where learninglogid is set.
+            $DB->execute("UPDATE {learninglog_categories} c
+                          SET c.courseid = (SELECT l.course FROM {learninglog} l WHERE l.id = c.learninglogid)
+                          WHERE c.learninglogid IS NOT NULL");
+            // Backfill: rows with NULL learninglogid get courseid from user's first learning log.
+            $DB->execute("UPDATE {learninglog_categories} c
+                          SET c.courseid = (SELECT lul.courseid FROM {learninglog_user_log} lul WHERE lul.userid = c.userid ORDER BY lul.id ASC LIMIT 1)
+                          WHERE c.courseid IS NULL");
+            // Any remaining NULLs (e.g. no user log): use first course to satisfy NOT NULL.
+            $DB->execute("UPDATE {learninglog_categories} SET courseid = (SELECT MIN(id) FROM {course}) WHERE courseid IS NULL");
+            $courseidnotnull = new xmldb_field('courseid', XMLDB_TYPE_INTEGER, '10', null, XMLDB_NOTNULL, null, null, 'id');
+            $dbman->change_field_notnull($table, $courseidnotnull);
+        }
+        $courseidkey = new xmldb_key('courseid', XMLDB_KEY_FOREIGN, ['courseid'], 'course', ['id']);
+        try {
+            $dbman->add_key($table, $courseidkey);
+        } catch (Exception $e) {
+            // Key may already exist (e.g. from install.xml or prior upgrade).
+        }
+        $index = new xmldb_index('user_course_sort_idx', XMLDB_INDEX_NOTUNIQUE, ['userid', 'courseid', 'sortorder']);
+        if (!$dbman->index_exists($table, $index)) {
+            $dbman->add_index($table, $index);
+        }
+        upgrade_mod_savepoint(true, 2026031801, 'learninglog');
+    }
+
+    if ($oldversion < 2026032001) {
+        $table = new xmldb_table('learninglog_comments');
+        $istutor = new xmldb_field('istutor', XMLDB_TYPE_INTEGER, '1', null, XMLDB_NOTNULL, null, '0', 'timemodified');
+        if (!$dbman->field_exists($table, $istutor)) {
+            $dbman->add_field($table, $istutor);
+        }
+        $tutorvisibility = new xmldb_field('tutorvisibility', XMLDB_TYPE_CHAR, '10', null, null, null, null, 'istutor');
+        if (!$dbman->field_exists($table, $tutorvisibility)) {
+            $dbman->add_field($table, $tutorvisibility);
+        }
+        $index = new xmldb_index('post_time_ix', XMLDB_INDEX_NOTUNIQUE, ['postid', 'timecreated']);
+        if (!$dbman->index_exists($table, $index)) {
+            $dbman->add_index($table, $index);
+        }
+        upgrade_mod_savepoint(true, 2026032001, 'learninglog');
     }
 
     return true;
