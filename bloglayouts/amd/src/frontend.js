@@ -9,6 +9,8 @@
 
 /**
  * Simple lightbox: show one image in an overlay; click or Escape to close.
+ * The caption is taken from the nearest .tbl-image-caption, so it works even
+ * if data attributes are stripped and alt is empty.
  *
  * @param {HTMLElement} wrapper The layout grid wrapper element.
  */
@@ -37,12 +39,12 @@ const initSimpleLightbox = (wrapper) => {
         }
     };
 
-    const show = (src, alt) => {
+    const show = (src, caption) => {
         close();
         overlay = document.createElement('div');
         overlay.className = 'tiny-bloglayout-lightbox';
         overlay.setAttribute('role', 'dialog');
-        overlay.setAttribute('aria-label', alt || 'Enlarged image');
+        overlay.setAttribute('aria-label', caption || 'Enlarged image');
 
         const backdrop = document.createElement('div');
         backdrop.className = 'tiny-bloglayout-lightbox-backdrop';
@@ -50,8 +52,15 @@ const initSimpleLightbox = (wrapper) => {
         content.className = 'tiny-bloglayout-lightbox-content';
         const fullImg = document.createElement('img');
         fullImg.src = src;
-        fullImg.alt = alt || '';
+        fullImg.alt = caption || '';
         content.appendChild(fullImg);
+
+        if (caption) {
+            const captionEl = document.createElement('div');
+            captionEl.className = 'tiny-bloglayout-lightbox-caption';
+            captionEl.textContent = caption;
+            content.appendChild(captionEl);
+        }
         overlay.appendChild(backdrop);
         overlay.appendChild(content);
 
@@ -71,7 +80,17 @@ const initSimpleLightbox = (wrapper) => {
         img.addEventListener('click', (e) => {
             e.preventDefault();
             const full = img.getAttribute('data-fullres') || img.src;
-            show(full, img.getAttribute('alt') || '');
+
+            let caption = '';
+            const item = img.closest('.tbl-image-item');
+            if (item) {
+                const captionEl = item.querySelector('.tbl-image-caption');
+                if (captionEl) {
+                    caption = captionEl.textContent.trim();
+                }
+            }
+
+            show(full, caption);
         });
     });
 };
@@ -124,7 +143,28 @@ export const init = () => {
                 wrapper.querySelectorAll('img').forEach((img) => {
                     const slide = document.createElement('div');
                     slide.classList.add('swiper-slide');
-                    slide.appendChild(img.cloneNode(true));
+
+                    const inner = document.createElement('div');
+                    inner.classList.add('tiny-bloglayout-slide-inner');
+
+                    let captionText = '';
+                    const item = img.closest('.tbl-image-item');
+                    if (item) {
+                        const captionEl = item.querySelector('.tbl-image-caption');
+                        if (captionEl) {
+                            captionText = captionEl.textContent.trim();
+                        }
+                    }
+
+                    if (captionText) {
+                        const captionEl = document.createElement('div');
+                        captionEl.className = 'tiny-bloglayout-caption';
+                        captionEl.textContent = captionText;
+                        inner.appendChild(captionEl);
+                    }
+
+                    inner.appendChild(img.cloneNode(true));
+                    slide.appendChild(inner);
                     wrapperEl.appendChild(slide);
                 });
 

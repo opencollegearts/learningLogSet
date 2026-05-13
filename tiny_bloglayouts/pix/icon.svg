@@ -1,8 +1,0 @@
-<?xml version="1.0" encoding="UTF-8"?>
-<svg width="24" height="24" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg" role="img" aria-labelledby="title">
-    <title>Blog layouts</title>
-    <rect x="3" y="5" width="7" height="6" rx="1" ry="1" fill="#4a90e2"/>
-    <rect x="14" y="5" width="7" height="6" rx="1" ry="1" fill="#50e3c2"/>
-    <rect x="3" y="13" width="7" height="6" rx="1" ry="1" fill="#f5a623"/>
-    <rect x="14" y="13" width="7" height="6" rx="1" ry="1" fill="#bd10e0"/>
-</svg>

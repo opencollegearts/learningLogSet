@@ -19,11 +19,13 @@ const buildLayoutHtml = (layoutType, images) => {
 
     const itemsHtml = images.map((img) => {
         const src = img.url;
-        const alt = img.name || '';
         const full = img.url;
+        const caption = (img.caption || img.name || '').trim();
+        const alt = caption || img.name || '';
 
         return `
             <div class="tbl-image-item">
+                <div class="tbl-image-caption" contenteditable="true">${caption}</div>
                 <img src="${src}" alt="${alt}" data-fullres="${full}">
             </div>
         `;
